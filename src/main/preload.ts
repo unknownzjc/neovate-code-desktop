@@ -24,4 +24,7 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.removeAllListeners('confirm-list-directory'),
   removeDirectoryResultListener: () =>
     ipcRenderer.removeAllListeners('directory-result'),
+  // Store persistence
+  saveStore: (state: any) => ipcRenderer.invoke('store:save', state),
+  loadStore: () => ipcRenderer.invoke('store:load'),
 });
