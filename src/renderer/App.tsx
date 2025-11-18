@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from './store';
 import { MainLayout } from './components';
+import { TestHugeIcons } from './components/test';
 import { mockData } from './mockData';
 
 function App() {
@@ -100,6 +101,9 @@ function App() {
         onSendMessage={handleSendMessage}
         onExecuteCommand={handleExecuteCommand}
       />
+      <div className="p-4 overflow-auto">
+        <TestHugeIcons />
+      </div>
     </div>
   );
 }
