@@ -234,7 +234,7 @@ export const WorkspacePanel = ({
       >
         <WorkspacePanel.Header />
         <WorkspacePanel.SessionTabs />
-        <WorkspacePanel.WorkspaceInfo />
+        {/* <WorkspacePanel.WorkspaceInfo /> */}
         <WorkspacePanel.Messages />
         <div
           className="p-4"

@@ -85,7 +85,7 @@ const TestComponent = () => {
             <div>
               Sessions:{' '}
               {sessions[selectedWorkspaceId]
-                ?.map((s) => s.sessionId.substring(0, 8))
+                ?.map((s) => s.sessionId.substring(0, 8) + ' - ' + s.summary)
                 .join(', ') || 'None'}
             </div>
           </div>
