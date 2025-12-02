@@ -11,6 +11,13 @@ import type { WorkspaceData, SessionData } from '../client/types/entities';
 import type { NormalizedMessage } from '../client/types/message';
 import { Button } from '@/components/ui/button';
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/menu';
+import { ChevronDown } from 'lucide-react';
+import {
   Empty,
   EmptyMedia,
   EmptyHeader,
@@ -261,6 +268,34 @@ export const WorkspacePanel = ({
 // Compound components
 WorkspacePanel.Header = function Header() {
   const { workspace } = useWorkspaceContext();
+  const request = useStore((state) => state.request);
+  const deleteWorkspace = useStore((state) => state.deleteWorkspace);
+  const selectWorkspace = useStore((state) => state.selectWorkspace);
+
+  const handleMerge = async () => {
+    try {
+      const response = await request<
+        { cwd: string; name: string },
+        { success: boolean; error?: string }
+      >('project.workspaces.merge', {
+        cwd: workspace.repoPath,
+        name: workspace.id,
+      });
+
+      if (response.success) {
+        deleteWorkspace(workspace.id);
+        selectWorkspace(null);
+      } else {
+        console.error('Merge failed:', response.error);
+      }
+    } catch (error) {
+      console.error('Merge failed:', error);
+    }
+  };
+
+  const handleCreatePR = () => {
+    throw new Error('Not implemented');
+  };
 
   return (
     <div
@@ -279,9 +314,28 @@ WorkspacePanel.Header = function Header() {
             {workspace.repoPath}
           </p>
         </div>
-        <Button variant="default" size="sm">
-          Open in Editor
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="default" size="sm">
+            Open in Editor
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="outline" size="sm">
+                  Complete <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleMerge}>
+                Merge to origin branch
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCreatePR}>
+                Create PR to remote
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   );

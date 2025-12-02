@@ -47,6 +47,7 @@ import {
 } from './ui/empty';
 import { Button } from './ui/button';
 import { AddRepoMenu } from './AddRepoMenu';
+import { toastManager } from './ui/toast';
 
 export const RepoSidebar = ({
   repos,
@@ -62,8 +63,12 @@ export const RepoSidebar = ({
   onSelectWorkspace: (id: string | null) => void;
 }) => {
   const allRepoIds = repos.map((repo) => repo.path);
+  const [openRepos, setOpenRepos] = useState<string[]>(allRepoIds);
   const workspaces = useStore((state) => state.workspaces);
   const deleteRepo = useStore((state) => state.deleteRepo);
+  const request = useStore((state) => state.request);
+  const addWorkspace = useStore((state) => state.addWorkspace);
+  const selectWorkspace = useStore((state) => state.selectWorkspace);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
@@ -90,8 +95,82 @@ export const RepoSidebar = ({
     }
   };
 
-  const handleNewWorkspace = (repoPath: string) => {
-    console.log(`Create new workspace for ${repoPath}`);
+  React.useEffect(() => {
+    setOpenRepos((prev) => {
+      const newRepoIds = allRepoIds.filter((id) => !prev.includes(id));
+      if (newRepoIds.length > 0) {
+        return [...prev, ...newRepoIds];
+      }
+      return prev;
+    });
+  }, [allRepoIds.join(',')]);
+
+  const handleNewWorkspace = async (repoPath: string) => {
+    if (!openRepos.includes(repoPath)) {
+      setOpenRepos((prev) => [...prev, repoPath]);
+    }
+
+    try {
+      // Step 1: Create workspace
+      const createResponse = await request<
+        { cwd: string; skipUpdate: boolean },
+        {
+          success: boolean;
+          error?: string;
+          data?: { workspace: { name: string; path: string; branch: string } };
+        }
+      >('project.workspaces.create', {
+        cwd: repoPath,
+        skipUpdate: true,
+      });
+
+      if (!createResponse.success) {
+        toastManager.add({
+          title: 'Workspace Creation Failed',
+          description: createResponse.error || 'Failed to create workspace',
+          type: 'error',
+        });
+        return;
+      }
+
+      // Step 2: Fetch full workspace details
+      const workspaceId = createResponse.data?.workspace.name;
+      if (!workspaceId) {
+        toastManager.add({
+          title: 'Workspace Creation Failed',
+          description: 'Invalid workspace response from server',
+          type: 'error',
+        });
+        return;
+      }
+
+      const fetchResponse = await request<
+        { cwd: String; workspaceId: string },
+        { success: boolean; error?: string; data?: WorkspaceData }
+      >('project.workspaces.get', {
+        cwd: repoPath,
+        workspaceId,
+      });
+
+      if (!fetchResponse.success || !fetchResponse.data) {
+        toastManager.add({
+          title: 'Failed to load workspace',
+          description: 'Workspace created but could not load details',
+          type: 'warning',
+        });
+        return;
+      }
+
+      // Step 3: Add to store and select
+      addWorkspace(fetchResponse.data);
+      selectWorkspace(workspaceId);
+    } catch (error) {
+      toastManager.add({
+        title: 'Workspace Creation Failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        type: 'error',
+      });
+    }
   };
 
   return (
@@ -124,7 +203,7 @@ export const RepoSidebar = ({
             </EmptyHeader>
           </Empty>
         ) : (
-          <Accordion defaultValue={allRepoIds}>
+          <Accordion value={openRepos} onValueChange={setOpenRepos}>
             {repos.map((repo) => (
               <AccordionItem key={repo.path} value={repo.path}>
                 <AccordionTrigger className="px-3 py-2 hover:bg-opacity-50">

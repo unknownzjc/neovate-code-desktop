@@ -71,7 +71,7 @@ export const AddRepoMenu = ({ children }: AddRepoMenuProps) => {
           const workspacesResponse = await request<
             { cwd: string },
             GetWorkspacesInfoResponse
-          >('project.getWorkspacesInfo', { cwd: selectedPath });
+          >('project.workspaces.list', { cwd: selectedPath });
 
           if (
             workspacesResponse.success &&
