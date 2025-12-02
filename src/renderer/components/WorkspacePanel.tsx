@@ -344,11 +344,12 @@ WorkspacePanel.Header = function Header() {
 WorkspacePanel.SessionTabs = function SessionTabs() {
   const { allSessions, selectedSessionId, selectSession } =
     useWorkspaceContext();
+  const createSession = useStore((state) => state.createSession);
 
   if (allSessions.length === 0) {
     return (
       <div
-        className="flex items-center justify-center py-4"
+        className="flex items-center justify-between py-4 px-4"
         style={{
           borderBottom: '1px solid var(--border-subtle)',
           backgroundColor: 'var(--bg-surface)',
@@ -357,13 +358,16 @@ WorkspacePanel.SessionTabs = function SessionTabs() {
         <p className="text-sm" style={{ color: '#999' }}>
           No sessions yet
         </p>
+        <Button variant="ghost" size="sm" onClick={createSession}>
+          + Create
+        </Button>
       </div>
     );
   }
 
   return (
     <div
-      className="flex overflow-x-auto"
+      className="flex overflow-x-auto items-center"
       style={{
         borderBottom: '1px solid var(--border-subtle)',
         backgroundColor: 'var(--bg-surface)',
@@ -377,6 +381,14 @@ WorkspacePanel.SessionTabs = function SessionTabs() {
           onClick={() => selectSession(session.sessionId)}
         />
       ))}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={createSession}
+        className="ml-2 shrink-0"
+      >
+        + Create
+      </Button>
     </div>
   );
 };

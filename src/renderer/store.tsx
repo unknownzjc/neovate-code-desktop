@@ -57,6 +57,7 @@ interface StoreActions {
   setSessions: (workspaceId: string, sessions: SessionData[]) => void;
   addMessage: (sessionId: string, message: NormalizedMessage) => void;
   setMessages: (sessionId: string, messages: NormalizedMessage[]) => void;
+  createSession: () => string;
 
   // UI Selections
   selectRepo: (path: string | null) => void;
@@ -206,9 +207,7 @@ const useStore = create<Store>()((set, get) => ({
       selectedWorkspaceId,
       workspaces,
       request,
-      selectSession,
-      setSessions,
-      sessions,
+      createSession,
     } = get();
 
     let sessionId = selectedSessionId;
@@ -218,19 +217,7 @@ const useStore = create<Store>()((set, get) => ({
     }
 
     if (!sessionId) {
-      const newSessionId = randomUUID();
-      setSessions(selectedWorkspaceId, [
-        ...(sessions[selectedWorkspaceId] || []),
-        {
-          sessionId: newSessionId,
-          modified: Date.now(),
-          created: Date.now(),
-          messageCount: 0,
-          summary: '',
-        },
-      ]);
-      selectSession(newSessionId);
-      sessionId = newSessionId;
+      sessionId = createSession();
     }
 
     const workspace = workspaces[selectedWorkspaceId];
@@ -454,6 +441,28 @@ const useStore = create<Store>()((set, get) => ({
         [sessionId]: messages,
       },
     }));
+  },
+
+  createSession: () => {
+    const { selectedWorkspaceId, sessions, setSessions, selectSession } = get();
+
+    if (!selectedWorkspaceId) {
+      throw new Error('No workspace selected to create session');
+    }
+
+    const newSessionId = randomUUID();
+    setSessions(selectedWorkspaceId, [
+      ...(sessions[selectedWorkspaceId] || []),
+      {
+        sessionId: newSessionId,
+        modified: Date.now(),
+        created: Date.now(),
+        messageCount: 0,
+        summary: '',
+      },
+    ]);
+    selectSession(newSessionId);
+    return newSessionId;
   },
 
   // UI Selections
