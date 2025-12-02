@@ -294,7 +294,7 @@ WorkspacePanel.Header = function Header() {
   };
 
   const handleCreatePR = () => {
-    throw new Error('Not implemented');
+    alert('Not implemented');
   };
 
   return (

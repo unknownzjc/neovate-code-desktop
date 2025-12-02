@@ -477,6 +477,7 @@ RepoSidebar.Footer = function Footer() {
       <button
         className="p-2 rounded hover:bg-opacity-70 transition-colors"
         style={{ color: 'var(--text-secondary)' }}
+        onClick={() => alert('Not implemented')}
       >
         <HugeiconsIcon icon={SettingsIcon} size={18} strokeWidth={1.5} />
       </button>
