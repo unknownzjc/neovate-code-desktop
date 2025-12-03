@@ -9,6 +9,10 @@ import type {
 } from './client/types/entities';
 import type { NormalizedMessage } from './client/types/message';
 
+type WorkspaceId = string;
+type SessionId = string;
+type RepoId = string;
+
 interface StoreState {
   // WebSocket connection state
   state: 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -17,10 +21,10 @@ interface StoreState {
   initialized: boolean;
 
   // Entity data
-  repos: Record<string, RepoData>;
-  workspaces: Record<string, WorkspaceData>;
-  sessions: Record<string, SessionData[]>;
-  messages: Record<string, NormalizedMessage[]>;
+  repos: Record<RepoId, RepoData>;
+  workspaces: Record<WorkspaceId, WorkspaceData>;
+  sessions: Record<WorkspaceId, SessionData[]>;
+  messages: Record<SessionId, NormalizedMessage[]>;
 
   // Processing state
   status: 'idle' | 'processing';
@@ -29,8 +33,8 @@ interface StoreState {
 
   // UI state
   selectedRepoPath: string | null;
-  selectedWorkspaceId: string | null;
-  selectedSessionId: string | null;
+  selectedWorkspaceId: WorkspaceId | null;
+  selectedSessionId: SessionId | null;
 }
 
 interface StoreActions {
@@ -58,6 +62,11 @@ interface StoreActions {
   addMessage: (sessionId: string, message: NormalizedMessage) => void;
   setMessages: (sessionId: string, messages: NormalizedMessage[]) => void;
   createSession: () => string;
+  updateSession: (
+    workspaceId: string,
+    sessionId: string,
+    updates: Partial<SessionData>,
+  ) => void;
 
   // UI Selections
   selectRepo: (path: string | null) => void;
@@ -181,8 +190,6 @@ const useStore = create<Store>()((set, get) => ({
       return;
     }
 
-    console.log('Initializing event handlers');
-
     onEvent('message', (data: any) => {
       console.log('message', data);
       if (data.message && data.sessionId) {
@@ -208,6 +215,9 @@ const useStore = create<Store>()((set, get) => ({
       workspaces,
       request,
       createSession,
+      sessions,
+      updateSession,
+      messages,
     } = get();
 
     let sessionId = selectedSessionId;
@@ -240,6 +250,45 @@ const useStore = create<Store>()((set, get) => ({
         cwd,
         planMode: false,
       });
+
+      const workspaceSessions = sessions[selectedWorkspaceId];
+      const session = workspaceSessions.find((s) => s.sessionId === sessionId);
+      const sessionMessages = get().messages[sessionId] || [];
+      const userMessages = sessionMessages.filter((m) => m.role === 'user');
+      if (userMessages.length > 1) {
+        return;
+      }
+      const userMessagesText = userMessages
+        .map((m) => m.content)
+        .slice(0, 10)
+        .join('\n');
+      const summary = await request<
+        { message: string; cwd: string; model?: string },
+        {
+          success: boolean;
+          data: {
+            text: string;
+          };
+        }
+      >('utils.summarizeMessage', {
+        message: params.message,
+        cwd,
+      });
+      if (summary.success && summary.data.text) {
+        try {
+          const res = JSON.parse(summary.data.text.trim());
+          if (res.title) {
+            await request('session.config.setSummary', {
+              cwd,
+              sessionId,
+              summary: res.title,
+            });
+            updateSession(selectedWorkspaceId, sessionId, {
+              summary: res.title,
+            });
+          }
+        } catch (_error) {}
+      }
     } finally {
       set({
         status: 'idle',
@@ -425,6 +474,21 @@ const useStore = create<Store>()((set, get) => ({
     }));
   },
 
+  updateSession: (
+    workspaceId: string,
+    sessionId: string,
+    updates: Partial<SessionData>,
+  ) => {
+    set((state) => ({
+      sessions: {
+        ...state.sessions,
+        [workspaceId]: state.sessions[workspaceId].map((s) =>
+          s.sessionId === sessionId ? { ...s, ...updates } : s,
+        ),
+      },
+    }));
+  },
+
   addMessage: (sessionId: string, message: NormalizedMessage) => {
     set((state) => ({
       messages: {
@@ -458,7 +522,7 @@ const useStore = create<Store>()((set, get) => ({
         modified: Date.now(),
         created: Date.now(),
         messageCount: 0,
-        summary: '',
+        summary: 'New session',
       },
     ]);
     selectSession(newSessionId);

@@ -402,6 +402,16 @@ WorkspacePanel.SessionTab = function SessionTab({
   isActive: boolean;
   onClick: () => void;
 }) {
+  const summary = useMemo(() => {
+    if (session.summary) {
+      if (session.summary.length > 16) {
+        return session.summary.substring(0, 16) + '...';
+      }
+      return session.summary;
+    } else {
+      return 'New session';
+    }
+  }, [session.summary]);
   return (
     <div
       className="px-4 py-2 text-sm cursor-pointer whitespace-nowrap"
@@ -412,7 +422,7 @@ WorkspacePanel.SessionTab = function SessionTab({
       }
       onClick={onClick}
     >
-      {session.sessionId.substring(0, 8)}
+      {summary}
     </div>
   );
 };
