@@ -4,6 +4,7 @@ import { useStore } from './store';
 import { Button } from './components/ui/button';
 import { TestMessages } from './TestMessages';
 import { TestUIComponents } from './components/TestUIComponents';
+import { TestHugeIcons } from './components/test/TestHugeIcons';
 
 const TestComponent = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -93,6 +94,9 @@ const TestComponent = () => {
           </div>
         </div>
       )}
+      <div style={{ marginTop: '16px' }}>
+        <TestHugeIcons />
+      </div>
       <div style={{ marginTop: '16px' }}>
         <TestMessages />
       </div>

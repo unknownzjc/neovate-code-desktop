@@ -32,15 +32,7 @@ export function ToolMessage({ pair }: ToolMessageProps) {
   const displayName = toolUse.displayName || toolUse.name;
 
   return (
-    <div
-      style={{
-        backgroundColor: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: '8px',
-        padding: '12px',
-        marginTop: '8px',
-      }}
-    >
+    <div style={{}}>
       {/* Tool header */}
       <div
         style={{
@@ -69,6 +61,17 @@ export function ToolMessage({ pair }: ToolMessageProps) {
         >
           {displayName}
         </span>
+        {toolUse.description && (
+          <span
+            style={{
+              fontSize: '13px',
+              color: 'var(--text-secondary)',
+              marginLeft: '8px',
+            }}
+          >
+            {toolUse.description}
+          </span>
+        )}
         {!toolResult && (
           <span
             style={{
@@ -83,22 +86,9 @@ export function ToolMessage({ pair }: ToolMessageProps) {
         )}
       </div>
 
-      {/* Tool description */}
-      {toolUse.description && (
-        <div
-          style={{
-            fontSize: '13px',
-            color: 'var(--text-secondary)',
-            marginBottom: '8px',
-          }}
-        >
-          {toolUse.description}
-        </div>
-      )}
-
       {/* Tool result */}
       {toolResult && (
-        <div style={{ marginTop: '12px', paddingLeft: '24px' }}>
+        <div style={{ paddingLeft: '16px' }}>
           {/* Error handling */}
           {toolResult.result.isError && (
             <div

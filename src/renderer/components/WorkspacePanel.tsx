@@ -244,10 +244,8 @@ export const WorkspacePanel = ({
           style={{ borderTop: '1px solid var(--border-subtle)' }}
         >
           <ChatInput
-            value={inputValue}
-            onChange={setInputValue}
-            onSend={sendMessage}
-            isLoading={isLoading}
+            onSubmit={sendMessage}
+            onCancel={() => setInputValue('')}
             placeholder={
               selectedSessionId
                 ? 'Ask anything, @ for context'
@@ -499,7 +497,7 @@ WorkspacePanel.Messages = function Messages() {
           No messages yet. Start a conversation!
         </div>
       ) : (
-        <div className="space-y-4">
+        <div>
           {/* Completed messages (memoized to prevent re-renders) */}
           {completedMessages.map((message) => (
             <MemoizedMessage

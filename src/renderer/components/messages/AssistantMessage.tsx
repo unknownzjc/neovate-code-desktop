@@ -44,38 +44,12 @@ export function AssistantMessage({
     <div className="flex justify-start">
       <div
         style={{
-          maxWidth: '80%',
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: '12px',
-          padding: '12px 16px',
+          // maxWidth: '80%',
+          // backgroundColor: 'var(--bg-surface)',
+          // borderRadius: '12px',
+          padding: '12px 0',
         }}
       >
-        {/* Header with role and timestamp */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            marginBottom: '8px',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-          }}
-        >
-          <span>Assistant</span>
-          <span
-            style={{
-              marginLeft: '8px',
-              color: 'var(--text-secondary)',
-              fontWeight: 400,
-            }}
-          >
-            {new Date(message.timestamp).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </span>
-        </div>
-
         {/* Reasoning (thinking) parts */}
         {reasoningParts.length > 0 && (
           <div style={{ marginBottom: textParts.length > 0 ? '12px' : '0' }}>
@@ -83,28 +57,22 @@ export function AssistantMessage({
               <div
                 key={`reasoning-${message.uuid}-${index}`}
                 style={{
-                  fontSize: '13px',
-                  color: 'var(--text-secondary)',
-                  fontStyle: 'italic',
-                  backgroundColor: 'var(--bg-primary)',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  borderLeft: '3px solid var(--border-subtle)',
                   marginBottom: '8px',
                 }}
               >
                 <div
                   style={{
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: 'var(--text-secondary)',
                     marginBottom: '4px',
-                    opacity: 0.7,
                   }}
                 >
-                  Thinking
+                  Thought
                 </div>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{part.text}</div>
+                <div style={{ paddingLeft: '12px' }}>
+                  <MarkdownContent content={part.text} />
+                </div>
               </div>
             ))}
           </div>

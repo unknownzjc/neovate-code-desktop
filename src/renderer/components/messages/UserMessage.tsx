@@ -14,41 +14,16 @@ export function UserMessage({ message }: UserMessageProps) {
   const imageParts = extractImageParts(message);
 
   return (
-    <div className="flex justify-end">
+    <div className="w-full">
       <div
         style={{
-          maxWidth: '80%',
-          backgroundColor: '#0070f3',
-          color: 'white',
-          borderRadius: '12px',
-          padding: '12px 16px',
+          width: '100%',
+          backgroundColor: 'var(--muted)',
+          color: 'var(--foreground)',
+          borderRadius: '8px',
+          padding: '12px 8px',
         }}
       >
-        {/* Header with role and timestamp */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            marginBottom: textContent || imageParts.length > 0 ? '8px' : '0',
-            fontSize: '12px',
-            fontWeight: 600,
-          }}
-        >
-          <span>You</span>
-          <span
-            style={{
-              marginLeft: '8px',
-              opacity: 0.7,
-              fontWeight: 400,
-            }}
-          >
-            {new Date(message.timestamp).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </span>
-        </div>
-
         {/* Text content */}
         {textContent && (
           <div
