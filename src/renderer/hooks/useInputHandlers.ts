@@ -211,7 +211,7 @@ export function useInputHandlers({
 
       // Enter handling
       if (e.key === 'Enter') {
-        if (e.metaKey || e.shiftKey) {
+        if (e.metaKey || e.shiftKey || e.altKey) {
           return; // Allow newline
         }
         e.preventDefault();
