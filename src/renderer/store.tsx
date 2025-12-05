@@ -216,13 +216,15 @@ const useStore = create<Store>()((set, get) => ({
   },
 
   initialize: async () => {
-    const { initialized, onEvent, addMessage } = get();
+    const { loadGlobalConfig, initialized, onEvent, addMessage } = get();
 
     // Only initialize once
     if (initialized) {
       console.log('Already initialized, skipping');
       return;
     }
+
+    await loadGlobalConfig();
 
     onEvent('message', (data: any) => {
       console.log('message', data);

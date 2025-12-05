@@ -85,16 +85,8 @@ export const PreferencesPanel = () => {
   const globalConfig = useStore((state) => state.globalConfig);
   const isConfigLoading = useStore((state) => state.isConfigLoading);
   const isConfigSaving = useStore((state) => state.isConfigSaving);
-  const loadGlobalConfig = useStore((state) => state.loadGlobalConfig);
   const getGlobalConfigValue = useStore((state) => state.getGlobalConfigValue);
   const setGlobalConfig = useStore((state) => state.setGlobalConfig);
-
-  // Load config on mount if not already loaded
-  useEffect(() => {
-    if (globalConfig === null) {
-      loadGlobalConfig();
-    }
-  }, [globalConfig, loadGlobalConfig]);
 
   const theme = getGlobalConfigValue<ThemeValue>('desktop.theme', 'system');
 

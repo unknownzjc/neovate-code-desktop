@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useStore } from './store';
 import { MainLayout } from './components';
 import { useStoreConnection } from './hooks';
@@ -18,7 +19,33 @@ function App() {
     selectWorkspace,
     sendMessage,
     showSettings,
+    getGlobalConfigValue,
+    globalConfig,
   } = useStore();
+
+  // Get theme from config (default to 'system')
+  const theme = getGlobalConfigValue<string>('desktop.theme', 'system');
+
+  // Apply dark/light mode based on theme setting
+  useEffect(() => {
+    const root = document.documentElement;
+
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else if (theme === 'light') {
+      root.classList.remove('dark');
+    } else {
+      // System preference
+      const prefersDark = window.matchMedia(
+        '(prefers-color-scheme: dark)',
+      ).matches;
+      if (prefersDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    }
+  }, [theme, globalConfig]);
 
   // Get the selected workspace
   const selectedWorkspace = selectedWorkspaceId
