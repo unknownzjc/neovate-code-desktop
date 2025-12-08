@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import Markdown from 'marked-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BrainIcon } from '@hugeicons/core-free-icons';
 import type { NormalizedMessage } from '../../client/types/message';
 import {
   extractTextParts,
@@ -66,12 +68,27 @@ export function AssistantMessage({
                     fontWeight: 500,
                     color: 'var(--text-secondary)',
                     marginBottom: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
-                  Thought
+                  <HugeiconsIcon
+                    icon={BrainIcon}
+                    size={14}
+                    color="var(--text-secondary)"
+                    strokeWidth={1.5}
+                  />
+                  <span style={{ fontStyle: 'italic' }}>Thought</span>
                 </div>
-                <div style={{ paddingLeft: '12px' }}>
-                  <MarkdownContent content={part.text} />
+                <div
+                  style={{
+                    paddingLeft: '20px',
+                    color: 'var(--text-secondary)',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  <MarkdownContent content={part.text} isThought />
                 </div>
               </div>
             ))}
@@ -125,7 +142,13 @@ export function AssistantMessage({
  * MarkdownContent component
  * Renders markdown text using marked-react
  */
-function MarkdownContent({ content }: { content: string }) {
+function MarkdownContent({
+  content,
+  isThought = false,
+}: {
+  content: string;
+  isThought?: boolean;
+}) {
   const rendered = useMemo(() => {
     try {
       return content;
@@ -140,7 +163,8 @@ function MarkdownContent({ content }: { content: string }) {
       style={{
         fontSize: '14px',
         lineHeight: '1.6',
-        color: 'var(--text-primary)',
+        color: isThought ? 'var(--text-secondary)' : 'var(--text-primary)',
+        fontStyle: isThought ? 'italic' : 'normal',
       }}
       className="markdown-content"
     >
