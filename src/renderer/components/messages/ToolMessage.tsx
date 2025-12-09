@@ -175,7 +175,7 @@ export function ToolMessage({ pair }: ToolMessageProps) {
                 }
                 newContent={
                   extractValue(
-                    toolUse.input.new_string || toolUse.input.newContent,
+                    toolUse.input.new_string || toolUse.input.content,
                     toolUse.input,
                   ) || ''
                 }

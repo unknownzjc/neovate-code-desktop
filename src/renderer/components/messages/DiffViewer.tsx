@@ -25,7 +25,7 @@ function parseDiff(diff: string): DiffLine[] {
       // Skip hunk headers for simplified view
       continue;
     } else {
-      result.push({ type: 'context', content: line });
+      // result.push({ type: 'context', content: line });
     }
   }
 
