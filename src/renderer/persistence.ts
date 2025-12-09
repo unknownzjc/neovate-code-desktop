@@ -3,6 +3,7 @@ import type { StoreApi } from 'zustand';
 // Declare electron API on window object
 declare global {
   interface Window {
+    // @ts-ignore
     electron: {
       saveStore: (state: any) => Promise<{ success: boolean }>;
       loadStore: () => Promise<any>;

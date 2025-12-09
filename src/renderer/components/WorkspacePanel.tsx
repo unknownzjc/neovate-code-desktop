@@ -271,6 +271,9 @@ export const WorkspacePanel = ({
             }
             modelName={workspace.context.settings?.model}
             disabled={isLoading}
+            sessionId={selectedSessionId || undefined}
+            cwd={workspace.repoPath}
+            request={request}
           />
         </div>
       </div>

@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
+import type React from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   SentIcon,
@@ -14,6 +15,29 @@ import { SuggestionDropdown } from './SuggestionDropdown';
 import { ImagePreview } from './ImagePreview';
 import { Textarea, Tooltip, TooltipTrigger, TooltipPopup, Button } from '../ui';
 import type { SlashCommand } from '../../hooks/useSlashCommands';
+import type {
+  HandlerMethod,
+  HandlerInput,
+  HandlerOutput,
+} from '../../nodeBridge.types';
+
+// Provider type from the API
+interface Provider {
+  id: string;
+  name: string;
+  doc?: string;
+  env?: string[];
+  apiEnv?: string[];
+  validEnvs: string[];
+  hasApiKey: boolean;
+}
+
+// Model type from the API
+interface Model {
+  name: string;
+  modelId: string;
+  value: string;
+}
 
 interface ChatInputProps {
   onSubmit: (value: string, images?: string[]) => void;
@@ -24,6 +48,12 @@ interface ChatInputProps {
   placeholder?: string;
   disabled?: boolean;
   modelName?: string;
+  sessionId?: string;
+  cwd?: string;
+  request?: <K extends HandlerMethod>(
+    method: K,
+    params: HandlerInput<K>,
+  ) => Promise<HandlerOutput<K>>;
 }
 
 // Default implementations
@@ -40,9 +70,196 @@ export function ChatInput({
   placeholder = 'Type your message...',
   disabled = false,
   modelName,
+  sessionId,
+  cwd,
+  request,
 }: ChatInputProps) {
   const { planMode, thinking, togglePlanMode, toggleThinking } =
     useInputStore();
+
+  // Parse modelName into provider and model
+  const [currentProvider, currentModel] = useMemo(() => {
+    if (!modelName) return ['', ''];
+    const parts = modelName.split('/');
+    if (parts.length >= 2) {
+      return [parts[0], parts.slice(1).join('/')];
+    }
+    return ['', modelName];
+  }, [modelName]);
+
+  // Provider and model selector state
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [models, setModels] = useState<Model[]>([]);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [providerValue, setProviderValue] = useState<string | null>(null);
+  const [modelValue, setModelValue] = useState<string | null>(null);
+
+  // Debug: Log state changes
+  console.log('[ChatInput] Provider/Model Selector State:', {
+    modelName,
+    currentProvider,
+    currentModel,
+    providerValue,
+    modelValue,
+    providersCount: providers.length,
+    modelsCount: models.length,
+    hasRequest: !!request,
+    cwd,
+    sessionId,
+  });
+
+  // Fetch providers when provider selector opens
+  const handleProviderOpen = useCallback(async () => {
+    console.log('[ChatInput] handleProviderOpen called', {
+      request: !!request,
+      cwd,
+      isLoadingProviders,
+    });
+    if (!request || !cwd || isLoadingProviders) return;
+
+    setIsLoadingProviders(true);
+    try {
+      const response = await request('providers.list', { cwd });
+      console.log('[ChatInput] providers.list response:', response);
+      if (response.success) {
+        // Filter to only show providers with valid configuration
+        const validProviders = response.data.providers.filter(
+          (p: Provider) => p.validEnvs.length > 0 || p.hasApiKey,
+        );
+        console.log('[ChatInput] Valid providers:', validProviders);
+        setProviders(validProviders);
+      }
+    } catch (error) {
+      console.error('[ChatInput] Failed to fetch providers:', error);
+    } finally {
+      setIsLoadingProviders(false);
+    }
+  }, [request, cwd, isLoadingProviders]);
+
+  // Fetch models for the current provider when model selector opens
+  // Returns the fetched models so caller can use them
+  const handleModelOpen = useCallback(
+    async (providerId?: string): Promise<Model[]> => {
+      console.log('[ChatInput] handleModelOpen called', {
+        providerId,
+        currentProvider,
+        request: !!request,
+        cwd,
+        isLoadingModels,
+      });
+      if (!request || !cwd || isLoadingModels) return [];
+
+      const targetProvider = providerId || currentProvider;
+      if (!targetProvider) {
+        console.log('[ChatInput] No target provider, skipping model fetch');
+        return [];
+      }
+
+      setIsLoadingModels(true);
+      try {
+        const response = await request('models.list', { cwd });
+        console.log('[ChatInput] models.list response:', response);
+        if (response.success) {
+          console.log(
+            '[ChatInput] Looking for provider:',
+            targetProvider,
+            'in groupedModels:',
+            response.data.groupedModels,
+          );
+          const providerModels =
+            response.data.groupedModels.find(
+              (g: { providerId: string }) => g.providerId === targetProvider,
+            )?.models || [];
+          console.log('[ChatInput] Provider models found:', providerModels);
+          setModels(providerModels);
+          return providerModels;
+        }
+      } catch (error) {
+        console.error('[ChatInput] Failed to fetch models:', error);
+      } finally {
+        setIsLoadingModels(false);
+      }
+      return [];
+    },
+    [request, cwd, currentProvider, isLoadingModels],
+  );
+
+  // Handle provider change
+  const handleProviderChange = useCallback(
+    async (newProvider: string) => {
+      console.log('[ChatInput] handleProviderChange called', {
+        newProvider,
+        currentProvider,
+        request: !!request,
+        cwd,
+        sessionId,
+      });
+      if (!request || !cwd || !sessionId || newProvider === currentProvider)
+        return;
+
+      // Fetch models for the new provider
+      const fetchedModels = await handleModelOpen(newProvider);
+
+      // Auto-select the first model and update session config
+      if (fetchedModels.length > 0) {
+        const firstModel = fetchedModels[0];
+        const fullModelValue = `${newProvider}/${firstModel.modelId}`;
+        console.log('[ChatInput] Auto-selecting first model:', fullModelValue);
+
+        setModelValue(firstModel.modelId);
+
+        try {
+          await request('session.config.set', {
+            cwd,
+            sessionId,
+            key: 'model',
+            value: fullModelValue,
+          });
+          console.log('[ChatInput] Auto-selected model set successfully');
+        } catch (error) {
+          console.error('[ChatInput] Failed to auto-set model:', error);
+        }
+      }
+    },
+    [request, cwd, sessionId, currentProvider, handleModelOpen],
+  );
+
+  // Handle model change
+  const handleModelChange = useCallback(
+    async (newModel: string) => {
+      console.log('[ChatInput] handleModelChange called', {
+        newModel,
+        providerValue,
+        currentProvider,
+        request: !!request,
+        cwd,
+        sessionId,
+      });
+      if (!request || !cwd || !sessionId) return;
+
+      // Determine which provider to use
+      const provider = providerValue || currentProvider;
+      const fullModelValue = `${provider}/${newModel}`;
+
+      console.log('[ChatInput] Setting model to:', fullModelValue);
+      try {
+        await request('session.config.set', {
+          cwd,
+          sessionId,
+          key: 'model',
+          value: fullModelValue,
+        });
+        console.log('[ChatInput] Model set successfully');
+        // Reset local state after successful update
+        // setProviderValue(null);
+        // setModelValue(null);
+      } catch (error) {
+        console.error('[ChatInput] Failed to set model:', error);
+      }
+    },
+    [request, cwd, sessionId, providerValue, currentProvider],
+  );
 
   const { inputState, mode, handlers, suggestions, imageManager } =
     useInputHandlers({
@@ -207,28 +424,85 @@ export function ChatInput({
         >
           {/* Left side tools */}
           <div className="flex items-center gap-1">
-            {/* Model selector */}
-            {modelName && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                      style={{ color: 'var(--text-secondary)' }}
-                      onClick={() => {
-                        alert('Not implemented yet');
-                      }}
-                    >
-                      <HugeiconsIcon icon={ChipIcon} size={14} />
-                      <span className="font-medium max-w-[120px] truncate">
-                        {modelName}
-                      </span>
-                    </button>
-                  }
+            {/* Provider and Model selectors */}
+            {modelName && request && cwd && sessionId && (
+              <div className="flex items-center gap-0.5">
+                <HugeiconsIcon
+                  icon={ChipIcon}
+                  size={14}
+                  style={{ color: 'var(--text-secondary)' }}
+                  className="mr-1"
                 />
-                <TooltipPopup>Current model</TooltipPopup>
-              </Tooltip>
+                {/* Provider selector - native select */}
+                <select
+                  value={providerValue || currentProvider}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    console.log('[ChatInput] Provider select onChange:', value);
+                    setProviderValue(value);
+                    handleProviderChange(value);
+                  }}
+                  onFocus={() => {
+                    console.log('[ChatInput] Provider select onFocus');
+                    handleProviderOpen();
+                  }}
+                  className="text-xs font-medium bg-transparent border-0 outline-none cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded px-1 py-0.5"
+                  style={{ color: 'var(--text-secondary)' }}
+                  title="Select provider"
+                >
+                  {isLoadingProviders ? (
+                    <option disabled>Loading...</option>
+                  ) : providers.length === 0 ? (
+                    <option value={currentProvider}>{currentProvider}</option>
+                  ) : (
+                    providers.map((provider) => (
+                      <option key={provider.id} value={provider.id}>
+                        {provider.id}
+                      </option>
+                    ))
+                  )}
+                </select>
+
+                <span
+                  className="text-xs"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
+                  /
+                </span>
+
+                {/* Model selector - native select */}
+                <select
+                  value={modelValue || currentModel}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    console.log('[ChatInput] Model select onChange:', value);
+                    setModelValue(value);
+                    handleModelChange(value);
+                  }}
+                  onFocus={() => {
+                    console.log(
+                      '[ChatInput] Model select onFocus, providerValue:',
+                      providerValue,
+                    );
+                    handleModelOpen(providerValue || undefined);
+                  }}
+                  className="text-xs font-medium bg-transparent border-0 outline-none cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded px-1 py-0.5 max-w-[150px]"
+                  style={{ color: 'var(--text-secondary)' }}
+                  title="Select model"
+                >
+                  {isLoadingModels ? (
+                    <option disabled>Loading...</option>
+                  ) : models.length === 0 ? (
+                    <option value={currentModel}>{currentModel}</option>
+                  ) : (
+                    models.map((model) => (
+                      <option key={model.modelId} value={model.modelId}>
+                        {model.modelId}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
             )}
 
             {/* Plan/Brainstorm Mode Toggle */}
