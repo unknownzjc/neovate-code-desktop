@@ -1,10 +1,10 @@
-import React from 'react';
+import { CloudIcon, FolderIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { FolderIcon, CloudIcon } from '@hugeicons/core-free-icons';
-import { Menu, MenuTrigger, MenuPopup, MenuItem } from './ui/menu';
+import React from 'react';
+import type { ElectronAPI } from '../../shared/types';
 import { useStore } from '../store';
 import { toastManager } from './ui';
-import type { ElectronAPI } from '../../shared/types';
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from './ui/menu';
 
 interface AddRepoMenuProps {
   children: React.ReactElement;
@@ -12,10 +12,26 @@ interface AddRepoMenuProps {
 
 export const AddRepoMenu = ({ children }: AddRepoMenuProps) => {
   const [open, setOpen] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
   const { request, addRepo, addWorkspace, repos } = useStore();
 
   const handleOpenProject = async () => {
+    // Prevent multiple simultaneous operations
+    if (isLoading) {
+      return;
+    }
+
     setOpen(false);
+
+    let loadingToastId: string | undefined;
+
+    // Helper function to close loading toast
+    const closeLoadingToast = () => {
+      if (loadingToastId) {
+        toastManager.close(loadingToastId);
+        loadingToastId = undefined;
+      }
+    };
 
     try {
       // Open native directory picker
@@ -40,6 +56,14 @@ export const AddRepoMenu = ({ children }: AddRepoMenuProps) => {
         });
         return;
       }
+
+      // Show loading state
+      setIsLoading(true);
+      loadingToastId = toastManager.add({
+        title: 'Adding repository',
+        description: 'Loading repository information...',
+        type: 'loading',
+      });
 
       // Request repository info from the backend
       const response = await request('project.getRepoInfo', {
@@ -78,13 +102,17 @@ export const AddRepoMenu = ({ children }: AddRepoMenuProps) => {
           console.warn('Error fetching workspaces:', workspaceError);
         }
 
-        // Show success toast after workspace processing
+        closeLoadingToast();
+
+        // Show success toast
         toastManager.add({
           title: 'Repository added',
           description: `Successfully added ${repoData.name}`,
           type: 'success',
         });
       } else {
+        closeLoadingToast();
+
         // Handle API error
         const errorMessage = response.error || 'Invalid response from server';
         toastManager.add({
@@ -94,6 +122,8 @@ export const AddRepoMenu = ({ children }: AddRepoMenuProps) => {
         });
       }
     } catch (error) {
+      closeLoadingToast();
+
       // Handle network or other errors
       const errorMessage =
         error instanceof Error ? error.message : 'Could not connect to server';
@@ -103,6 +133,8 @@ export const AddRepoMenu = ({ children }: AddRepoMenuProps) => {
         description: errorMessage,
         type: 'error',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -115,11 +147,11 @@ export const AddRepoMenu = ({ children }: AddRepoMenuProps) => {
     <Menu open={open} onOpenChange={setOpen}>
       <MenuTrigger>{children}</MenuTrigger>
       <MenuPopup side="top" align="start">
-        <MenuItem onClick={handleOpenProject}>
+        <MenuItem onClick={handleOpenProject} disabled={isLoading}>
           <HugeiconsIcon icon={FolderIcon} size={16} strokeWidth={1.5} />
           <span>Open Project</span>
         </MenuItem>
-        <MenuItem onClick={handleCloneFromURL}>
+        <MenuItem onClick={handleCloneFromURL} disabled={isLoading}>
           <HugeiconsIcon icon={CloudIcon} size={16} strokeWidth={1.5} />
           <span>Clone from URL</span>
         </MenuItem>
