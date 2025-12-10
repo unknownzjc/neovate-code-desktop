@@ -26,7 +26,7 @@ import {
   EmptyDescription,
 } from '@/components/ui/empty';
 import { useStore } from '../store';
-import { ChatInput } from './ChatInput';
+import { ChatInput, type ChatInputHandle } from './ChatInput';
 import { Message } from './messages/Message';
 import { splitMessages } from './messages/messageHelpers';
 import { OpenAppButton } from './OpenAppButton';
@@ -211,6 +211,20 @@ export const WorkspacePanel = ({
     return fetchSlashCommandList(selectedWorkspaceId);
   }, [selectedWorkspaceId, fetchSlashCommandList]);
 
+  // Ref for ChatInput to focus on session change
+  const chatInputRef = useRef<ChatInputHandle>(null);
+
+  // Auto-focus ChatInput when session is selected
+  useEffect(() => {
+    if (selectedSessionId) {
+      // Small delay to ensure the component is rendered
+      const timer = setTimeout(() => {
+        chatInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedSessionId]);
+
   if (!workspace) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -264,6 +278,7 @@ export const WorkspacePanel = ({
         >
           <ActivityIndicator sessionId={selectedSessionId} />
           <ChatInput
+            ref={chatInputRef}
             onSubmit={sendMessage}
             onCancel={() => {
               if (selectedSessionId) {
