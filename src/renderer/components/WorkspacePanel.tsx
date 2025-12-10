@@ -87,6 +87,7 @@ export const WorkspacePanel = ({
   const fetchSlashCommandList = useStore(
     (state) => state.fetchSlashCommandList,
   );
+  const cancelSession = useStore((state) => state.cancelSession);
 
   // Get sessions and messages for the current workspace from store - memoized to avoid infinite loop
   const allSessions = useMemo(
@@ -265,8 +266,9 @@ export const WorkspacePanel = ({
           <ChatInput
             onSubmit={sendMessage}
             onCancel={() => {
-              // setInputValue('');
-              // alert('on Cancel Not implemented');
+              if (selectedSessionId) {
+                cancelSession(selectedSessionId);
+              }
             }}
             onShowForkModal={() => {
               alert('fork not implemented');

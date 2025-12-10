@@ -134,6 +134,10 @@ interface StoreActions {
   // File and command cache actions
   fetchFileList: (workspaceId: string) => Promise<string[]>;
   fetchSlashCommandList: (workspaceId: string) => Promise<any[]>;
+
+  // Session control actions
+  cancelSession: (sessionId: string) => Promise<void>;
+  clearSession: (sessionId: string) => void;
 }
 
 type Store = StoreState & StoreActions;
@@ -877,6 +881,64 @@ const useStore = create<Store>()((set, get) => ({
       console.error('Failed to fetch slash command list:', error);
     }
     return [];
+  },
+
+  cancelSession: async (sessionId: string) => {
+    const {
+      request,
+      getSessionProcessing,
+      setSessionProcessing,
+      workspaces,
+      selectedWorkspaceId,
+    } = get();
+    const processing = getSessionProcessing(sessionId);
+
+    // Only cancel if currently processing
+    if (processing.status !== 'processing') {
+      return;
+    }
+
+    // Get cwd from selected workspace
+    const workspace = selectedWorkspaceId
+      ? workspaces[selectedWorkspaceId]
+      : null;
+    if (!workspace) {
+      console.error('No workspace found for cancel');
+      return;
+    }
+
+    try {
+      await request('session.cancel', {
+        cwd: workspace.worktreePath,
+        sessionId,
+      });
+    } catch (error) {
+      console.error('Failed to cancel session:', error);
+    }
+
+    // Reset processing state
+    setSessionProcessing(sessionId, {
+      status: 'idle',
+      processingStartTime: null,
+      processingToken: 0,
+      retryInfo: null,
+      error: null,
+    });
+  },
+
+  clearSession: (sessionId: string) => {
+    // Clear messages for the session
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [sessionId]: [],
+      },
+      // Reset session processing state
+      sessionProcessing: {
+        ...state.sessionProcessing,
+        [sessionId]: defaultSessionProcessingState,
+      },
+    }));
   },
 }));
 
