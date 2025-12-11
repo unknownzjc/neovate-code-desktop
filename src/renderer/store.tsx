@@ -15,6 +15,11 @@ import type {
   HandlerInput,
   HandlerOutput,
 } from './nodeBridge.types';
+import {
+  isSlashCommand,
+  parseSlashCommand,
+  type CommandEntry,
+} from './slashCommand';
 
 type WorkspaceId = string;
 type SessionId = string;
@@ -169,7 +174,10 @@ interface StoreActions {
 
   // Sessions
   setSessions: (workspaceId: string, sessions: SessionData[]) => void;
-  addMessage: (sessionId: string, message: NormalizedMessage) => void;
+  addMessage: (
+    sessionId: string,
+    message: NormalizedMessage | NormalizedMessage[],
+  ) => void;
   setMessages: (sessionId: string, messages: NormalizedMessage[]) => void;
   createSession: () => string;
   updateSession: (
@@ -346,7 +354,6 @@ const useStore = create<Store>()((set, get) => ({
     await loadGlobalConfig();
 
     onEvent('message', (data: any) => {
-      console.log('message', data);
       if (data.message && data.sessionId) {
         addMessage(data.sessionId, data.message);
       }
@@ -462,9 +469,11 @@ const useStore = create<Store>()((set, get) => ({
       updateSession,
       setSessionProcessing,
       setSessionInput,
+      addMessage,
     } = get();
 
     let sessionId = selectedSessionId;
+    let model: string | undefined = undefined;
 
     if (!selectedWorkspaceId) {
       throw new Error('No workspace selected to create session');
@@ -490,6 +499,77 @@ const useStore = create<Store>()((set, get) => ({
       });
     }
 
+    if (message && isSlashCommand(message)) {
+      const parsed = parseSlashCommand(message);
+      const result = await request('slashCommand.get', {
+        cwd,
+        command: parsed.command,
+      });
+      const commandEntry = result.data?.commandEntry as CommandEntry;
+      if (commandEntry) {
+        const userMessage: any = {
+          role: 'user',
+          content: message,
+        };
+        const command = commandEntry.command;
+        const type = command.type;
+        const isLocal = type === 'local';
+        const isLocalJSX = type === 'local-jsx';
+        const isPrompt = type === 'prompt';
+        if (isPrompt) {
+          // TODO: fork parentUuid
+          alert('session.addMessages');
+          await request('session.addMessages', {
+            cwd,
+            sessionId,
+            messages: [userMessage],
+            parentUuid: /** fork parentUuid */ undefined,
+          });
+          // if (forkParentUuid) {
+          //   set({
+          //     forkParentUuid: null,
+          //   });
+          // }
+        } else {
+          addMessage(sessionId, userMessage);
+        }
+        if (isLocal || isPrompt) {
+          const result = await request('slashCommand.execute', {
+            cwd,
+            sessionId,
+            command: parsed.command,
+            args: parsed.args,
+          });
+          if (result.success) {
+            const messages: NormalizedMessage[] = result.data.messages;
+            if (isPrompt) {
+              await request('session.addMessages', {
+                cwd,
+                sessionId,
+                messages,
+              });
+            } else {
+              addMessage(sessionId, messages);
+            }
+          }
+          if (isPrompt) {
+            message = null;
+            if (command.model) {
+              model = command.model;
+            }
+          } else {
+            return;
+          }
+        } else if (isLocalJSX) {
+          alert(`${command} Local JSX commands are not supported`);
+          return;
+        } else {
+          alert(`${command} Unknown slash command type: ${type}`);
+          return;
+        }
+      }
+    }
+
     // Set session-scoped processing state
     setSessionProcessing(sessionId, {
       status: 'processing',
@@ -511,6 +591,7 @@ const useStore = create<Store>()((set, get) => ({
         planMode: planModeBoolean,
         thinking,
         parentUuid: params.parentUuid,
+        model,
       });
 
       if (response.success) {
@@ -771,11 +852,15 @@ const useStore = create<Store>()((set, get) => ({
     }));
   },
 
-  addMessage: (sessionId: string, message: NormalizedMessage) => {
+  addMessage: (
+    sessionId: string,
+    message: NormalizedMessage | NormalizedMessage[],
+  ) => {
+    const messages = Array.isArray(message) ? message : [message];
     set((state) => ({
       messages: {
         ...state.messages,
-        [sessionId]: [...(state.messages[sessionId] || []), message],
+        [sessionId]: [...(state.messages[sessionId] || []), ...messages],
       },
     }));
   },
