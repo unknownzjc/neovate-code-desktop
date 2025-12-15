@@ -43,8 +43,9 @@ export function AssistantMessage({
   );
 
   return (
-    <div className="flex justify-start">
+    <div className="flex justify-start min-w-0 w-full">
       <div
+        className="min-w-0 w-full"
         style={
           {
             // maxWidth: '80%',
