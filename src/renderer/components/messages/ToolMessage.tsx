@@ -14,6 +14,7 @@ import {
   PlusSignIcon,
 } from '@hugeicons/core-free-icons';
 import type { ToolPair } from './types';
+import { diffLines } from 'diff';
 import { DiffViewer } from './DiffViewer';
 import { TodoList } from './TodoList';
 import type { TodoItemProps } from './TodoItem';
@@ -87,27 +88,14 @@ function calculateDiffStats(
   originalContent: string,
   newContent: string,
 ): { additions: number; deletions: number } {
-  const originalLines = originalContent.split('\n');
-  const newLines = newContent.split('\n');
-
-  // Simple line-based diff calculation
-  const originalSet = new Set(originalLines);
-  const newSet = new Set(newLines);
+  const changes = diffLines(originalContent, newContent);
 
   let additions = 0;
   let deletions = 0;
-
-  for (const line of newLines) {
-    if (!originalSet.has(line)) {
-      additions++;
-    }
-  }
-
-  for (const line of originalLines) {
-    if (!newSet.has(line)) {
-      deletions++;
-    }
-  }
+  changes.forEach((parts) => {
+    if (parts.added) additions += parts.count;
+    else if (parts.removed) deletions += parts.count;
+  });
 
   return { additions, deletions };
 }
@@ -182,19 +170,31 @@ export function ToolMessage({ pair }: ToolMessageProps) {
               newContent,
             );
             return (
-              <span style={{ marginLeft: '8px', fontSize: '13px' }}>
-                <span style={{ color: '#22c55e', fontWeight: 500 }}>
-                  +{additions}
-                </span>
-                <span
-                  style={{
-                    marginLeft: '6px',
-                    color: '#ef4444',
-                    fontWeight: 500,
-                  }}
-                >
-                  -{deletions}
-                </span>
+              <span
+                style={{
+                  display: 'flex',
+                  gap: '8px',
+                  alignItems: 'center',
+                  marginLeft: '8px',
+                  fontSize: '13px',
+                }}
+              >
+                {deletions !== 0 && (
+                  <span
+                    style={{
+                      marginLeft: '6px',
+                      color: '#ef4444',
+                      fontWeight: 500,
+                    }}
+                  >
+                    -{deletions}
+                  </span>
+                )}
+                {additions !== 0 && (
+                  <span style={{ color: '#22c55e', fontWeight: 500 }}>
+                    +{additions}
+                  </span>
+                )}
               </span>
             );
           })()}
